@@ -1,0 +1,130 @@
+###########
+#
+# Unatimy GameNow
+# Developed By Armaan Arellano / Unatimy
+# Beta Tested by Dev Shah
+#
+###########
+
+
+launchGUI()
+
+on launchGUI()
+	
+	
+	-- Specify the full path to the text file in the Documents folder
+	set filePath to (path to documents folder as text) & "fruitList.txt"
+	set posixFilePath to POSIX path of filePath
+	
+	-- Check if the file exists, if not create it with default values
+	if not (do shell script "test -f " & quoted form of posixFilePath & " && echo true || echo false") as boolean then
+		do shell script "echo '0,0,0' > " & quoted form of posixFilePath
+	end if
+	
+	-- Read the contents of the text file
+	set fileContents to read file filePath
+	
+	-- Split the text into items based on commas
+	set AppleScript's text item delimiters to ","
+	set fruitList to text items of fileContents
+	set AppleScript's text item delimiters to ""
+	
+	-- Checks if the application is being opened for the first time
+	if item 1 of fruitList is "0" then
+		onboarding()
+	end if
+	
+	-- Main GUI
+	set dialog1 to display alert "Unatimy Game Now" buttons {"Start PC", "Settings", "Quit"} default button "Start PC"
+	if button returned of dialog1 is "Start PC" then
+		
+		-- Construct and run the shell script command
+		set ipAddress to item 1 of fruitList
+		set devicePassword to item 2 of fruitList
+		set macAddress to item 3 of fruitList
+		set remoteControlApp to item 4 of fruitList
+		
+		-- Checks if there is user set IP Address
+		if item 1 of fruitList is "0" then
+			display notification with title "Unatimy Game Now" subtitle "No IP Address Set: Open settings to set IP Address (ex:pi@193.342.123.123)"
+			display alert "No IP Address Set: Open settings to set IP Address (ex:pi@193.342.123.123)"
+		end if
+		
+		-- Checks if there is user set device password 
+		if item 2 of fruitList is "0" then
+			display notification with title "Unatimy Game Now" subtitle "No Device Password Set: No password set for device. Open settings to set password (Your device password is the password used to establish an ssh connection)"
+			display alert "No Device Password Set: No password set for device. Open settings to set password (Your device password is the password used to establish an ssh connection)"
+		end if
+		
+		-- Checks if there is user set MAC Address
+		if item 3 of fruitList is "0" then
+			display notification with title "Unatimy Game Now" subtitle "No PC MAC Address Set: Open settings to set PC MAC Address (ex:8A:2B:4D:5E:7F:9A)"
+			display alert "No PC MAC Address Set: Open settings to set PC MAC Address (ex:8A:2B:4D:5E:7F:9A)"
+		end if
+		
+		--SSH Script to send etherwake command using sshpass to mac
+		set shellCommand to "/opt/homebrew/bin/sshpass -p '" & devicePassword & "' ssh -T '" & ipAddress & "' << 'EOF'
+sudo etherwake -i wlan0 " & macAddress & "
+EOF 2>/dev/null"
+		do shell script "open -a \"Parsec\""
+		
+		try
+			do shell script shellCommand
+		end try
+		display notification "Wake On Lan Attempted" with title "Unatimy GameNow"
+		
+		-- Settings GUI
+	else if button returned of dialog1 is "Settings" then
+		set alert to display alert "Settings
+IP: " & item 1 of fruitList & "
+ Server Pswd: " & item 2 of fruitList & "
+PC MAC Address: " & item 3 of fruitList buttons {"Set IP Address", "Set Device Password", "Set PC MAC Address"}
+		if button returned of alert is "Set IP Address" then
+			set userInput to text returned of (display dialog "Enter IP Address Below
+Current IP Address: " & item 1 of fruitList default answer "")
+			set item 1 of fruitList to userInput
+		else if button returned of alert is "Set Device Password" then
+			set userInput to text returned of (display dialog "Enter Device Password Below
+Current Password: " & item 2 of fruitList default answer "")
+			set item 2 of fruitList to userInput
+		else if button returned of alert is "Set PC MAC Address" then
+			set userInput to text returned of (display dialog "Enter MAC Address Below
+Current MAC Address: " & item 3 of fruitList default answer "")
+			set item 3 of fruitList to userInput
+		end if
+		
+		-- Save the modified list to the file
+		set AppleScript's text item delimiters to ","
+		set fruitListString to fruitList as string
+		set AppleScript's text item delimiters to ""
+		
+		set fileRef to open for access file filePath with write permission
+		set eof of fileRef to 0 -- Clear the file
+		write fruitListString & linefeed to fileRef
+		close access fileRef
+		
+		set finish to display dialog "Settings updated successfully." buttons {"Quit", "Home"} default button "Home"
+		if button returned of finish is "Home" then
+			launchGUI()
+		end if
+	end if
+end launchGUI
+
+on onboarding()
+	set onboardGUI to display dialog "Welcome to Unatimy GameNow. This application uses a Raspberry Pi to act as a link between your internet and your PC. 
+
+Required prerequisites: 
+
+ 1.sshpass installed on your mac (Allows command to be sent through the internet to your PC quickly)
+
+2. A Raspberry Pi running etherwake that can be accessed remotely using the ssh protocol
+
+(IMPORTANT) 3. You must remotely connect to the Raspberry Pi at least once using terminal to authenticate it with your mac. You wont have to do it again)
+
+4. Click settings to add the IP address of the pi (ex.pi@192.432.353.232), the password of the pi, and the MAC Address of your PC" buttons {"Get sshpass", "Get your Pi set-up", "continue"}
+	if button returned of onboardGUI is "Get sshpass" then
+		--your code
+	end if
+	if button returned of onboardGUI is "Get your Pi set-up" then
+	end if
+end onboarding
